@@ -1,0 +1,1 @@
+Draft project for central survey repository for Influenzanet platforms
