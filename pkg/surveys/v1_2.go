@@ -7,8 +7,8 @@ type SurveyV1_2 struct {
 }
 
 type SurveyVersionV1_2 struct {
-	Published        int64          `json:"published"`
-	UnPublished      int64          `json:"unpublished"`
+	Published        int64          `json:"published,string"`
+	UnPublished      int64          `json:"unpublished,string"`
 	SurveyDefinition SurveyItemV1_2 `json:"surveyDefinition"`
 	VersionID        string         `json:"versionID"`
 }
