@@ -7,10 +7,10 @@ import (
 )
 
 type AppConfig struct {
-	Host       string            `toml:"host"`
-	DSN        string            `toml:"dsn"`
+	Host       string            `toml:"host"` // Host to listen to
+	DSN        string            `toml:"dsn"`  // Database DSN sqlite://file, po
 	SurveyPath string            `toml:"survey_path"`
-	Users      map[string]string `toml:"users"`
+	Users      map[string]string `toml:"users"` // User : Argon Hash
 }
 
 func getEnvOr(name string, def string) string {

@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/influenzanet/survey-repository/pkg/backend"
 	"github.com/influenzanet/survey-repository/pkg/config"
 	"github.com/influenzanet/survey-repository/pkg/manager"
 	"github.com/influenzanet/survey-repository/pkg/models"
@@ -18,14 +22,16 @@ import (
 )
 
 type HttpServer struct {
-	app     *fiber.App
-	config  *config.AppConfig
-	manager *manager.Manager
-	start   time.Time
+	app         *fiber.App
+	config      *config.AppConfig
+	manager     *manager.Manager
+	start       time.Time
+	counter     atomic.Uint64
+	storeSurvey bool
 }
 
 func NewHttpServer(config *config.AppConfig, manager *manager.Manager) *HttpServer {
-	return &HttpServer{config: config, manager: manager}
+	return &HttpServer{config: config, manager: manager, storeSurvey: true}
 }
 
 func (server *HttpServer) HomeHandler(c *fiber.Ctx) error {
@@ -73,10 +79,24 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	fmt.Println("survey")
-	fmt.Println(survey)
-
 	platform := c.FormValue("platform")
+	if platform == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Platform code must be provided",
+		})
+	}
+
+	count := server.counter.Add(1)
+
+	var fn string
+	if server.storeSurvey {
+		// Store survey data in temporary file. It will be renamed in cas of success with file id
+		fn = fmt.Sprintf("%s/%s-%s-%x-%x.json", server.config.SurveyPath, namespace, platform, time.Now().Unix(), count)
+		err = os.WriteFile(fn, survey, 0666)
+		if err != nil {
+			log.Printf("Error writing survey in %s", fn)
+		}
+	}
 
 	descriptor, err := surveys.ExtractSurveyMetadata([]byte(survey))
 	if err != nil {
@@ -97,14 +117,27 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 
 	var id uint
 
-	id, err = server.manager.ImportSurvey(meta, []byte(survey))
+	id, err = server.manager.FindSurvey(meta)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("%s", err),
+		})
+	}
+	if id != 0 {
+		return c.Status(fiber.StatusAlreadyReported).JSON(fiber.Map{
+			"id": id,
+		})
+	}
+
+	id, err = server.manager.ImportSurvey(meta, fn, []byte(survey))
 
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
 		})
 	}
-	return c.JSON(fiber.Map{
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"id": id,
 	})
 }
@@ -134,6 +167,56 @@ func (server *HttpServer) SurveyMetaHandler(c *fiber.Ctx) error {
 		})
 	}
 	data, err := server.manager.GetSurveyMeta(uint(id))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("%s", err),
+		})
+	}
+	return c.JSON(data)
+}
+
+func parseCommaList(s string) []string {
+	ss := strings.Split(s, ",")
+	o := make([]string, 0, len(ss))
+	for _, v := range ss {
+		o = append(o, strings.TrimSpace(v))
+	}
+	return o
+}
+
+func (server *HttpServer) NamespaceSurveysHandler(c *fiber.Ctx) error {
+	namespace := c.Params("namespace")
+	filters := backend.SurveyFilter{}
+
+	qPlatform := c.Query("platforms")
+	if qPlatform != "" {
+		filters.Platforms = parseCommaList(qPlatform)
+	}
+
+	limit := c.QueryInt("limit", 0)
+	if limit > 0 {
+		filters.Limit = limit
+		offset := c.QueryInt("offset", 0)
+		filters.Offset = offset
+	}
+
+	publishedFrom := c.QueryInt("published_from", 0)
+	if publishedFrom > 0 {
+		filters.Published.From = int64(publishedFrom)
+	}
+	publishedTo := c.QueryInt("published_to", 0)
+	if publishedTo > 0 {
+		filters.Published.To = int64(publishedTo)
+	}
+
+	id := server.manager.GetNamespaceID(namespace)
+	if id == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Unknown namspace '%s'", namespace),
+		})
+	}
+
+	data, err := server.manager.GetSurveys(id, filters)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
@@ -179,7 +262,8 @@ func (server *HttpServer) Start() error {
 	})
 
 	app.Get("/", server.HomeHandler)
-	app.Get("/_/ns", server.NamespacesHandler)
+	app.Get("/namespaces", server.NamespacesHandler)
+	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysHandler)
 	app.Post("/import/:namespace", authMiddleware, server.ImportHandler)
 	app.Get("/survey/:id/data", server.SurveyDataHandler)
 	app.Get("/survey/:id", server.SurveyMetaHandler)
