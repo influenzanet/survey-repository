@@ -66,7 +66,16 @@ func NewGormBackend(config GormBackedConfig) *GormBackend {
 }
 
 func (gb *GormBackend) Start() error {
-	db, err := gorm.Open(sqlite.Open(gb.config.DSN), &gorm.Config{})
+
+	cfg, err := ParseDSN(gb.config.DSN)
+	if err != nil {
+		return err
+	}
+	if cfg.Driver != "sqlite" {
+		return fmt.Errorf("database driver '%s' is not available", cfg.Driver)
+	}
+
+	db, err := gorm.Open(sqlite.Open(cfg.Connexion), &gorm.Config{})
 	if err != nil {
 		return err
 	}
@@ -85,6 +94,23 @@ func (gb *GormBackend) ImportSurvey(meta models.SurveyMetadata, data []byte) (ui
 	return meta.ID, nil
 }
 
+func (gb *GormBackend) FindSurvey(meta models.SurveyMetadata) (uint, error) {
+	sd := models.SurveyMetadata{
+		Namespace:  meta.Namespace,
+		PlatformID: meta.PlatformID,
+		Descriptor: models.SurveyDescriptor{
+			Name:      meta.Descriptor.Name,
+			VersionID: meta.Descriptor.VersionID,
+		},
+	}
+	r := models.DBId{}
+	result := gb.db.Model(&sd).Where(&sd).Select("id").First(&r)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return r.ID, nil
+}
+
 func rangeFilter(db *gorm.DB, field string, filter backend.RangeFilter) {
 	if filter.From > 0 {
 		db.Where(fmt.Sprintf("%s > ?", field), filter.From)
@@ -94,7 +120,7 @@ func rangeFilter(db *gorm.DB, field string, filter backend.RangeFilter) {
 	}
 }
 
-func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) ([]models.SurveyMetadata, error) {
+func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) (backend.PaginatedResult[models.SurveyMetadata], error) {
 
 	db := gb.db
 
@@ -105,20 +131,25 @@ func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) 
 	rangeFilter(db, "imported_at", filters.ImporterAt)
 	rangeFilter(db, "descriptor_published", filters.Published)
 
+	page := backend.PaginatedResult[models.SurveyMetadata]{}
+
+	db.Count(&page.Total)
+
 	if filters.Limit > 0 {
+		page.Limit = int64(filters.Limit)
 		db.Limit(filters.Limit)
 	}
+
 	if filters.Offset > 0 {
+		page.Offset = int64(filters.Offset)
 		db.Offset(filters.Offset)
 	}
 
-	var surveys []models.SurveyMetadata
-
-	result := db.Find(&surveys)
+	result := db.Find(&page.Data)
 	if result.Error != nil {
-		return nil, result.Error
+		return page, result.Error
 	}
-	return surveys, nil
+	return page, nil
 }
 
 func (gb *GormBackend) GetSurveyMeta(id uint) (models.SurveyMetadata, error) {

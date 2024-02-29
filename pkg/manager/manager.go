@@ -13,6 +13,8 @@ import (
 	"github.com/influenzanet/survey-repository/pkg/models"
 )
 
+var ErrUnknownNamespace = errors.New("unknown namespace")
+
 type Manager struct {
 	db         backend.Backend
 	SurveyPath string
@@ -95,14 +97,19 @@ func (manager *Manager) CreateNamespace(name string) (uint, error) {
 	return manager.db.CreateNamespace(name)
 }
 
-func (manager *Manager) ImportSurvey(meta models.SurveyMetadata, survey []byte) (uint, error) {
+func (manager *Manager) ImportSurvey(meta models.SurveyMetadata, filePath string, survey []byte) (uint, error) {
 	id, err := manager.db.ImportSurvey(meta, survey)
 	if err != nil {
 		return id, err
 	}
 	if manager.SurveyPath != "" {
 		fn := fmt.Sprintf("%s/%d.json", manager.SurveyPath, id)
-		err = os.WriteFile(fn, survey, 0666)
+
+		if filePath == "" {
+			err = os.WriteFile(fn, survey, 0666)
+		} else {
+			err = os.Rename(filePath, fn)
+		}
 		if err != nil {
 			log.Printf("Error writing survey in %s", fn)
 		} else {
@@ -113,12 +120,20 @@ func (manager *Manager) ImportSurvey(meta models.SurveyMetadata, survey []byte) 
 	return id, err
 }
 
+func (manager *Manager) FindSurvey(meta models.SurveyMetadata) (uint, error) {
+	return manager.db.FindSurvey(meta)
+}
+
 func (manager *Manager) GetSurveyData(id uint, decompress bool) ([]byte, error) {
 	return manager.db.GetSurveyData(id, decompress)
 }
 
 func (manager *Manager) GetSurveyMeta(id uint) (models.SurveyMetadata, error) {
 	return manager.db.GetSurveyMeta(id)
+}
+
+func (manager *Manager) GetSurveys(namespace uint, filters backend.SurveyFilter) (backend.PaginatedResult[models.SurveyMetadata], error) {
+	return manager.db.GetSurveys(namespace, filters)
 }
 
 type NsRegistry struct {

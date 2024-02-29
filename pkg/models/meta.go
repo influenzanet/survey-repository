@@ -5,14 +5,18 @@ type SurveyDescriptor struct {
 	VersionID    string `json:"version"`
 	ExternalID   string `json:"external_id"`
 	Published    int64  `json:"published"`
-	ModelVersion string `json:"model_version"`
-	Sha          string `json:"sha"` // Base64Url encoded sha256
+	ModelVersion string `json:"model_version"` // Survey Model version
+	Sha          string `json:"sha256"`        // Base64Url encoded sha256
 }
 
 const (
 	SurveyVersion1_2 = "1.2"
 	SurveyVersion1_3 = "1.3"
 )
+
+type DBId struct {
+	ID uint
+}
 
 type SurveyMetadata struct {
 	ID         uint              `json:"id" gorm:"primaryKey"`
