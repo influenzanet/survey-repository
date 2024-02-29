@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 
@@ -106,6 +107,9 @@ func (gb *GormBackend) FindSurvey(meta models.SurveyMetadata) (uint, error) {
 	r := models.DBId{}
 	result := gb.db.Model(&sd).Where(&sd).Select("id").First(&r)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
 		return 0, result.Error
 	}
 	return r.ID, nil
