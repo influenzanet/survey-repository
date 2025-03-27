@@ -23,7 +23,7 @@ type Manager struct {
 
 func NewManager(config *config.AppConfig) *Manager {
 
-	db := gormBackend.NewGormBackend(gormBackend.GormBackedConfig{DSN: config.DSN})
+	db := gormBackend.NewGormBackend(gormBackend.GormBackendConfig{DSN: config.DB.DSN, Debug: config.DB.Debug})
 
 	return &Manager{
 		db:         db,

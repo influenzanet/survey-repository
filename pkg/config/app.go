@@ -12,9 +12,14 @@ type ServerConfig struct {
 	LimiterWindow int 			 `toml:"limiter_window"` // Window time for rate limiter in seconds
 }
 
-type AppConfig struct {
-	Server     ServerConfig `toml:"server"`
+type DBConfig struct {
 	DSN        string            `toml:"dsn"`  // Database DSN sqlite://file, po
+	Debug	   bool				 `toml:"debug"` // Debug Mode for Grom Db
+}
+
+type AppConfig struct {
+	Server     ServerConfig 	 `toml:"server"`
+	DB		   DBConfig 		 `toml:"db"`
 	SurveyPath string            `toml:"survey_path"`
 	Users      map[string]string `toml:"users"` // User : Argon Hash
 }

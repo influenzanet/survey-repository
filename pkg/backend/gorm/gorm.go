@@ -13,6 +13,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 // Create a writer that caches compressors.
@@ -49,16 +50,17 @@ func Decompress(src string) ([]byte, error) {
 type Backend interface {
 }
 
-type GormBackedConfig struct {
+type GormBackendConfig struct {
 	DSN string
+	Debug bool // If True, use logger
 }
 
 type GormBackend struct {
-	config GormBackedConfig
+	config GormBackendConfig
 	db     *gorm.DB
 }
 
-func NewGormBackend(config GormBackedConfig) *GormBackend {
+func NewGormBackend(config GormBackendConfig) *GormBackend {
 
 	return &GormBackend{
 		config: config,
@@ -76,7 +78,13 @@ func (gb *GormBackend) Start() error {
 		return fmt.Errorf("database driver '%s' is not available", cfg.Driver)
 	}
 
-	db, err := gorm.Open(sqlite.Open(cfg.Connexion), &gorm.Config{})
+	gormConfig := &gorm.Config{}
+
+	if(gb.config.Debug) {
+		gormConfig.Logger = gormLogger.Default.LogMode(gormLogger.Info)
+	}
+
+	db, err := gorm.Open(sqlite.Open(cfg.Connexion), gormConfig)
 	if err != nil {
 		return err
 	}
@@ -99,9 +107,9 @@ func (gb *GormBackend) FindSurvey(meta models.SurveyMetadata) (uint, error) {
 	sd := models.SurveyMetadata{
 		Namespace:  meta.Namespace,
 		PlatformID: meta.PlatformID,
+		Version: meta.Version,
 		Descriptor: models.SurveyDescriptor{
-			Name:      meta.Descriptor.Name,
-			VersionID: meta.Descriptor.VersionID,
+			Name: meta.Descriptor.Name,
 		},
 	}
 	r := models.DBId{}
@@ -124,12 +132,13 @@ func rangeFilter(db *gorm.DB, field string, filter backend.RangeFilter) {
 	}
 }
 
+
 func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) (backend.PaginatedResult[models.SurveyMetadata], error) {
 
-	db := gb.db
+	db := gb.db.Model(models.SurveyMetadata{})
 
 	if len(filters.Platforms) > 0 {
-		db.Where("platforms IN ?", filters.Platforms)
+		db.Where("platform_id IN ?", filters.Platforms)
 	}
 
 	rangeFilter(db, "imported_at", filters.ImporterAt)
