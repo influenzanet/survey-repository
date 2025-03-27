@@ -1,2 +1,2 @@
 #!/bin/sh
-go run ./cmd/survey-repository $*
+CGO_ENABLED=1 go run ./cmd/survey-repository $*
