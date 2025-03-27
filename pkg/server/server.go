@@ -208,6 +208,11 @@ func (server *HttpServer) NamespaceSurveysHandler(c *fiber.Ctx) error {
 		filters.Platforms = parseCommaList(qPlatform)
 	}
 
+	qName := c.Query("names")
+	if qName != "" {
+		filters.Names = parseCommaList(qName)
+	}
+
 	limit := c.QueryInt("limit", 0)
 	offset := c.QueryInt("offset", 0)
 	if limit > 0 {

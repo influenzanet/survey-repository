@@ -141,6 +141,10 @@ func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) 
 		db.Where("platform_id IN ?", filters.Platforms)
 	}
 
+	if len(filters.Names) > 0 {
+		db.Where("descriptor_name IN ?", filters.Names)
+	}
+
 	rangeFilter(db, "imported_at", filters.ImporterAt)
 	rangeFilter(db, "descriptor_published", filters.Published)
 

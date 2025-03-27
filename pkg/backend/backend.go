@@ -6,6 +6,7 @@ import (
 
 type SurveyFilter struct {
 	Platforms  []string
+	Names      []string // Survey names
 	ImporterAt RangeFilter
 	Published  RangeFilter
 	Limit      int
