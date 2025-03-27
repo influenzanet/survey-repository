@@ -29,13 +29,13 @@ server:
 	go run ./cmd/survey-repository server
 
 _docker_install: 
-	CGO_ENABLED=1 $(GO) build -o $(GOPATH)/$(NAME) -ldflags '-extldflags "-static" $(GO_LDFLAGS)' -tags netgo $(DIR)/cmd/$(NAME) 
+	CGO_ENABLED=1 $(GO) build -o $(GOPATH)/$(NAME) -ldflags '-extldflags "-static" $(GO_LDFLAGS)' -tags netgoex $(DIR)/cmd/$(NAME) 
 
 docker:
 	go run build/meta.go
 	docker build -f build/debian/Dockerfile --build-arg NAME=$(NAME) -t $(DOCKER_NAME) . 
 
-docker-export: version
+docker-export:
 	mkdir -p artifacts
 	go run build/meta.go
 	docker buildx build --output type=tar,dest=artifacts/$(NAME).$(VERSION).linux.amd_x86_64.tgz -f build/debian/Dockerfile .
