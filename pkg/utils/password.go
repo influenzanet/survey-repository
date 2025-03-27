@@ -1,13 +1,13 @@
 package utils
 
 import (
-	"github.com/influenzanet/user-management-service/pkg/pwhash"
+	"github.com/alexedwards/argon2id"
 )
 
 func CheckPassword(hash string, password string) (bool, error) {
-	return pwhash.ComparePasswordWithHash(hash, password)
+	return argon2id.ComparePasswordAndHash(password, hash)
 }
 
 func HashPassword(password string) (string, error) {
-	return pwhash.HashPassword(password)
+	return argon2id.CreateHash(password, argon2id.DefaultParams)
 }
