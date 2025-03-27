@@ -3,3 +3,4 @@ app.toml
 data/
 .envrc
 ./survey-repository
+artifacts
