@@ -24,6 +24,7 @@ type SurveyMetadata struct {
 	ImportedAt int64             `json:"imported_at"`
 	ImportedBy string            `json:"imported_by"`
 	PlatformID string            `json:"platform" gorm:"index"`
+	Version    string 			 `json:"version"`
 	Labels     map[string]string `json:"labels" gorm:"serializer:json"`
 	Descriptor SurveyDescriptor  `json:"descriptor" gorm:"embedded;embeddedPrefix:descriptor_"`
 	SurveyData SurveyData        `json:"-" gorm:"foreignKey:SurveyID"` // Do not serialize this field

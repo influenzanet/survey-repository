@@ -87,6 +87,8 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	version := c.FormValue("version")
+	
 	count := server.counter.Add(1)
 
 	var fn string
@@ -100,10 +102,21 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	}
 
 	descriptor, err := surveys.ExtractSurveyMetadata([]byte(survey))
+	
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
 		})
+	}
+
+	if(descriptor.VersionID == "") {
+		if(version == "") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "The survey doesnt contains version, please provide it with `version` field in the POST request",
+			})
+		}
+	} else {
+		version = descriptor.VersionID
 	}
 
 	username := string(c.Locals("_user").(string))
@@ -111,6 +124,7 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	meta := models.SurveyMetadata{
 		Namespace:  ns,
 		PlatformID: platform,
+		Version: version,
 		ImportedAt: time.Now().Unix(),
 		ImportedBy: username,
 		Descriptor: *descriptor,
@@ -195,10 +209,16 @@ func (server *HttpServer) NamespaceSurveysHandler(c *fiber.Ctx) error {
 	}
 
 	limit := c.QueryInt("limit", 0)
+	offset := c.QueryInt("offset", 0)
 	if limit > 0 {
 		filters.Limit = limit
-		offset := c.QueryInt("offset", 0)
 		filters.Offset = offset
+	} else {
+		if(offset > 0) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "`offset` param can only be used whith `limit`",
+			})
+		}
 	}
 
 	publishedFrom := c.QueryInt("published_from", 0)
