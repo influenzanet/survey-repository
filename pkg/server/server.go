@@ -19,6 +19,7 @@ import (
 	fiber "github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 )
 
 type HttpServer struct {
@@ -247,6 +248,8 @@ func (server *HttpServer) Start() error {
 	//server.instance = uuid.NewString()
 	server.start = time.Now()
 
+	cfg := server.config.Server
+
 	authMiddleware := basicauth.New(basicauth.Config{
 		Users:      nil,
 		Realm:      "Forbidden",
@@ -261,12 +264,20 @@ func (server *HttpServer) Start() error {
 		ContextPassword: "_pass",
 	})
 
+	ratelimiter := limiter.New(limiter.Config{
+		Max:          cfg.LimiterMax,
+		Expiration:     time.Duration(int64(cfg.LimiterWindow)) * time.Second,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.Get("x-forwarded-for")
+		},
+	})
+
 	app.Get("/", server.HomeHandler)
 	app.Get("/namespaces", server.NamespacesHandler)
 	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysHandler)
-	app.Post("/import/:namespace", authMiddleware, server.ImportHandler)
+	app.Post("/import/:namespace", ratelimiter, authMiddleware, server.ImportHandler)
 	app.Get("/survey/:id/data", server.SurveyDataHandler)
 	app.Get("/survey/:id", server.SurveyMetaHandler)
 
-	return app.Listen(server.config.Host)
+	return app.Listen(cfg.Host)
 }
