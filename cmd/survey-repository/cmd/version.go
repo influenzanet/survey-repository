@@ -19,8 +19,11 @@ var versionCmd = &cobra.Command{
 		
 		info, ok := debug.ReadBuildInfo()
 		
-		fmt.Printf("version %s\n", version.Version)
-		fmt.Printf("Revision %s\n", version.Revision)
+		v := version.Version()
+
+		fmt.Printf("version %s\n", v.Tag)
+		fmt.Printf("Revision %s\n", v.Revision)
+		fmt.Printf("Dirty %t\n", v.Dirty)
 
 		if !ok {
 			fmt.Println("Build info are not available")

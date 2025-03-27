@@ -1,3 +1,16 @@
+DIR=$(PWD)
+NAME ?= survey-repository
+GOBINS ?= .
+GO=go
+DOCKER_IMAGE ?= survey-repository
+DOCKER_TAG ?= latest
+GOPATH ?= /go
+VERSION ?= $(shell ./build/git-meta version)
+REVISION ?= $(shell ./build/git-meta revision)
+GO_PKG ?= github.com/influenzanet/$(NAME)
+DOCKER_NAME ?= $(DOCKER_IMAGE):$(DOCKER_TAG)
+GO_LDFLAGS ?=
+
 .PHONY: build docker
 
 TARGET_DIR ?= ./
@@ -14,3 +27,15 @@ run:
 
 server:
 	go run ./cmd/survey-repository server
+
+_docker_install: 
+	CGO_ENABLED=1 $(GO) build -o $(GOPATH)/$(NAME) -ldflags '-extldflags "-static" $(GO_LDFLAGS)' -tags netgo $(DIR)/cmd/$(NAME) 
+
+docker:
+	go run build/meta.go
+	docker build -f build/debian/Dockerfile --build-arg NAME=$(NAME) -t $(DOCKER_NAME) . 
+
+docker-export: version
+	mkdir -p artifacts
+	go run build/meta.go
+	docker buildx build --output type=tar,dest=artifacts/$(NAME).$(VERSION).linux.amd_x86_64.tgz -f build/debian/Dockerfile .
