@@ -56,6 +56,10 @@ func detectSurveyMetadata(data []byte) (*models.SurveyDescriptor, error) {
 		return d, nil
 	}
 
+	d, err = tryPreview(data)
+	if err == nil {
+		return d, nil
+	}
 	return nil, ErrUnknownSurveyModel
 }
 
@@ -106,5 +110,21 @@ func tryVersion1_3(data []byte) (*models.SurveyDescriptor, error) {
 	d.ExternalID = s.ID
 	d.Published = s.Published
 	d.ModelVersion = models.SurveyVersion1_3
+	return &d, nil
+}
+
+func tryPreview(data []byte) (*models.SurveyDescriptor, error) {
+	s := SurveyPreview{}
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return nil, err
+	}
+	if s.VersionID == "" {
+		return nil, errors.Join(ErrWrongSurveyModel, errors.New("VersionID is empty"))
+	}
+	d := models.SurveyDescriptor{}
+	d.VersionID = s.VersionID
+	d.Published = s.Published
+	d.ModelVersion = models.SurveyVersionPreview
 	return &d, nil
 }

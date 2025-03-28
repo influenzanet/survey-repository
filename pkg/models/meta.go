@@ -12,6 +12,7 @@ type SurveyDescriptor struct {
 const (
 	SurveyVersion1_2 = "1.2"
 	SurveyVersion1_3 = "1.3"
+	SurveyVersionPreview = "preview"
 )
 
 type DBId struct {

@@ -88,6 +88,7 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	}
 
 	version := c.FormValue("version")
+	name := c.FormValue("name")
 	
 	count := server.counter.Add(1)
 
@@ -117,6 +118,15 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 		}
 	} else {
 		version = descriptor.VersionID
+	}
+
+	if(descriptor.Name == "") {
+		if(name == "") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "The survey doesnt contains name, please provide it with `name` field in the POST request",
+			})
+		}
+		descriptor.Name = ""
 	}
 
 	username := string(c.Locals("_user").(string))
