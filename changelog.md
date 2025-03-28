@@ -1,3 +1,8 @@
+# 0.3
+
+- Add modelType in meta model (D=Definition, P=Preview), both version can be stored (with same version)
+- Add shorter structure to list imported versions at /namespace/:namespace/surveys/versions (`ShortVersionMeta`)
+- Import returns more information (as `ShortVersionMeta`)
 
 # 0.2
 
