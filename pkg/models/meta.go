@@ -10,9 +10,12 @@ type SurveyDescriptor struct {
 }
 
 const (
-	SurveyVersion1_2 = "1.2"
-	SurveyVersion1_3 = "1.3"
+	SurveyVersion1_2 = "1.2" // Survey Model for study service for version 1.2 (before 1.3)
+	SurveyVersion1_3 = "1.3" // Survey Model for study service for version 1.3+
 	SurveyVersionPreview = "preview"
+
+	SurveyModelDefinition = "D"
+	SurveyModelPreview = "P"
 )
 
 type DBId struct {
@@ -26,6 +29,7 @@ type SurveyMetadata struct {
 	ImportedBy string            `json:"imported_by"`
 	PlatformID string            `json:"platform" gorm:"index"`
 	Version    string 			 `json:"version"`
+	ModelType  string 			 `json:"model_type"` // Model type 'definition','preview'
 	Labels     map[string]string `json:"labels" gorm:"serializer:json"`
 	Descriptor SurveyDescriptor  `json:"descriptor" gorm:"embedded;embeddedPrefix:descriptor_"`
 	SurveyData SurveyData        `json:"-" gorm:"foreignKey:SurveyID"` // Do not serialize this field

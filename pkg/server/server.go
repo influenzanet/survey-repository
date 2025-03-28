@@ -31,6 +31,16 @@ type HttpServer struct {
 	storeSurvey bool
 }
 
+// ShortVersionMeta is a shorter structure to list survey versions
+type ShortVersionMeta struct {
+	ID		uint `json:"id"`
+	Version string `json:"version"`
+	PublishedAt int64 `json:"published"`
+	PlatformID string `json:"platform"`
+	Name	string `json:"name"`
+	ModelType  string `json:"model_type"` // Model type 'definition','preview'
+}
+
 func NewHttpServer(config *config.AppConfig, manager *manager.Manager) *HttpServer {
 	return &HttpServer{config: config, manager: manager, storeSurvey: true}
 }
@@ -131,10 +141,19 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 
 	username := string(c.Locals("_user").(string))
 
+	modelType := ""
+
+	if(descriptor.ModelVersion == "preview") {
+		modelType = models.SurveyModelPreview
+	} else {
+		modelType = models.SurveyModelDefinition
+	}
+
 	meta := models.SurveyMetadata{
 		Namespace:  ns,
 		PlatformID: platform,
 		Version: version,
+		ModelType: modelType,
 		ImportedAt: time.Now().Unix(),
 		ImportedBy: username,
 		Descriptor: *descriptor,
@@ -162,9 +181,16 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"id": id,
-	})
+	m := ShortVersionMeta{
+		ID:  id,
+		Version: meta.Version,
+		PublishedAt: meta.Descriptor.Published,
+		PlatformID: meta.PlatformID, 
+		ModelType: meta.ModelType, 
+		Name: meta.Descriptor.Name,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(m)
 }
 
 func (server *HttpServer) SurveyDataHandler(c *fiber.Ctx) error {
@@ -213,7 +239,16 @@ func parseCommaList(s string) []string {
 	return o
 }
 
-func (server *HttpServer) NamespaceSurveysHandler(c *fiber.Ctx) error {
+func (server *HttpServer) NamespaceSurveysFullHandler(c *fiber.Ctx) error {
+	return server.loadNamespaceSurveys(c, false)
+}
+
+func (server *HttpServer) NamespaceSurveysVersionsHandler(c *fiber.Ctx) error {
+	return server.loadNamespaceSurveys(c, true)
+}
+
+
+func (server *HttpServer) loadNamespaceSurveys(c *fiber.Ctx, onlyVersion bool) error {
 	namespace := c.Params("namespace")
 	filters := backend.SurveyFilter{}
 
@@ -225,6 +260,11 @@ func (server *HttpServer) NamespaceSurveysHandler(c *fiber.Ctx) error {
 	qName := c.Query("names")
 	if qName != "" {
 		filters.Names = parseCommaList(qName)
+	}
+
+	qTypes := c.Query("types")
+	if qTypes != "" {
+		filters.ModelTypes = parseCommaList(qTypes)
 	}
 
 	limit := c.QueryInt("limit", 0)
@@ -261,6 +301,31 @@ func (server *HttpServer) NamespaceSurveysHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
 		})
+	}
+	if(onlyVersion) {
+
+		versions := make([]ShortVersionMeta, 0, len(data.Data))
+		for _, sv := range data.Data {
+
+			m := ShortVersionMeta{
+				ID:  sv.ID,
+				Version: sv.Version,
+				PublishedAt: sv.Descriptor.Published,
+				PlatformID: sv.PlatformID, 
+				ModelType: sv.ModelType, 
+				Name: sv.Descriptor.Name,
+			}
+			versions = append(versions, m)
+		}
+		p := backend.PaginatedResult[ShortVersionMeta]{
+			PaginateInfo: backend.PaginateInfo{
+				Total: data.Total,
+				Offset: data.Offset,
+				Limit: data.Limit,
+			},
+			Data: versions,
+		}
+		return c.JSON(p)
 	}
 	return c.JSON(data)
 }
@@ -314,7 +379,8 @@ func (server *HttpServer) Start() error {
 	app.Get("/", server.HomeHandler)
 	app.Get("/refs/platforms", server.PlatformsHandler)
 	app.Get("/namespaces", server.NamespacesHandler)
-	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysHandler)
+	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysFullHandler)
+	app.Get("/namespace/:namespace/surveys/versions", server.NamespaceSurveysVersionsHandler)
 	app.Post("/import/:namespace", ratelimiter, authMiddleware, server.ImportHandler)
 	app.Get("/survey/:id/data", server.SurveyDataHandler)
 	app.Get("/survey/:id", server.SurveyMetaHandler)

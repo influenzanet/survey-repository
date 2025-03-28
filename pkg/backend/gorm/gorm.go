@@ -108,6 +108,7 @@ func (gb *GormBackend) FindSurvey(meta models.SurveyMetadata) (uint, error) {
 		Namespace:  meta.Namespace,
 		PlatformID: meta.PlatformID,
 		Version: meta.Version,
+		ModelType: meta.ModelType,
 		Descriptor: models.SurveyDescriptor{
 			Name: meta.Descriptor.Name,
 		},
@@ -135,7 +136,7 @@ func rangeFilter(db *gorm.DB, field string, filter backend.RangeFilter) {
 
 func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) (backend.PaginatedResult[models.SurveyMetadata], error) {
 
-	db := gb.db.Model(models.SurveyMetadata{})
+	db := gb.db.Model(models.SurveyMetadata{}) // Need to have a instance of db
 
 	if len(filters.Platforms) > 0 {
 		db.Where("platform_id IN ?", filters.Platforms)
@@ -143,6 +144,10 @@ func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) 
 
 	if len(filters.Names) > 0 {
 		db.Where("descriptor_name IN ?", filters.Names)
+	}
+
+	if len(filters.ModelTypes) > 0 {
+		db.Where("model_type IN ?", filters.ModelTypes)
 	}
 
 	rangeFilter(db, "imported_at", filters.ImporterAt)
