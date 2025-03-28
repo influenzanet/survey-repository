@@ -65,10 +65,27 @@ PLATFORM=code
 curl -X POST -u "user:password" -F "platform=$PLATFORM" -F "survey=@$SURVEY" http://localhost:8080/import/influenzanet
 ```
 
+Fields:
+
+Mandatory:
+- `platform`:  code of the platform in Influenzanet
+- `survey`: The survey json data (Full json of survey (study 1.2, 1.3+), or survey preview)
+
+Optional (can be mandatory if information is not provided inside the provided survey data):
+
+- `version` : Version of the survey if not provided inside the json (if the survey is not published)
+- `name` : Name of the survey, if the survey data is a preview
+
 ### namespace/{namespace}/surveys
 
 This route accept several query parameters
 
-- `platforms` list of platform code (coma separated list) e.g. 'fr,it,de'
+
+- `platforms`: list of platform code (comma separated list) e.g. 'fr,it,de'
+- `names`: list of surveys names
+- `published_from`: timestamp, minimal published time
+- `published_to`: timestamp, maximum published time
+
+Limit the results
 - `limit`  : Number of results to return
-- `offset` : Nomber of results
+- `offset` : Start index of the first result to show (only accepted with `limit`)
