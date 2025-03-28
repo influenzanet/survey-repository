@@ -8,7 +8,7 @@ import(
 )
 
 func runGit(args []string) (string, int, error) {
-	git, err := exec.LookPath("git.exe")
+	git, err := exec.LookPath("git")
 	if(err != nil) {
 		return "", -1, err
 	}
