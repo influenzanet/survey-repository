@@ -200,6 +200,10 @@ func (server *HttpServer) SurveyMetaHandler(c *fiber.Ctx) error {
 	return c.JSON(data)
 }
 
+func (server *HttpServer) PlatformsHandler(c *fiber.Ctx) error {
+	return c.JSON(models.WellKnownPlatforms)
+}
+
 func parseCommaList(s string) []string {
 	ss := strings.Split(s, ",")
 	o := make([]string, 0, len(ss))
@@ -308,6 +312,7 @@ func (server *HttpServer) Start() error {
 	})
 
 	app.Get("/", server.HomeHandler)
+	app.Get("/refs/platforms", server.PlatformsHandler)
 	app.Get("/namespaces", server.NamespacesHandler)
 	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysHandler)
 	app.Post("/import/:namespace", ratelimiter, authMiddleware, server.ImportHandler)
