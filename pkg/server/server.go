@@ -15,7 +15,8 @@ import (
 	"github.com/influenzanet/survey-repository/pkg/models"
 	"github.com/influenzanet/survey-repository/pkg/surveys"
 	"github.com/influenzanet/survey-repository/pkg/utils"
-
+	"github.com/influenzanet/survey-repository/pkg/version"
+	
 	fiber "github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
@@ -29,6 +30,7 @@ type HttpServer struct {
 	start       time.Time
 	counter     atomic.Uint64
 	storeSurvey bool
+	version  	version.VersionInfo
 }
 
 // ShortVersionMeta is a shorter structure to list survey versions
@@ -48,6 +50,7 @@ func NewHttpServer(config *config.AppConfig, manager *manager.Manager) *HttpServ
 func (server *HttpServer) HomeHandler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"Status":  "ok",
+		"Version": server.version.Tag,
 		"Started": server.start,
 	})
 }
@@ -351,6 +354,8 @@ func (server *HttpServer) Start() error {
 	server.app = app
 	//server.instance = uuid.NewString()
 	server.start = time.Now()
+
+	server.version = version.Version()
 
 	cfg := server.config.Server
 
