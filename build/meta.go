@@ -19,7 +19,7 @@ func runGit(args []string) (string, int, error) {
 }
 
 func gitExtractTag() (string, int, error) {
-	return runGit([]string{"describe", "--match",  "'v[0-9]*'",  "--dirty=.m",  "--always", "--tags"})
+	return runGit([]string{"describe", "--match",  "v[0-9]*",  "--dirty=.m",  "--always", "--tags"})
 }
 
 func gitExtractRevision() (string, int, error) {
