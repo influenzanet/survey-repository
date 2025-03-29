@@ -138,7 +138,7 @@ func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) 
 
 	db := gb.db.Model(models.SurveyMetadata{}) // Need to have a instance of db
 
-	db.Where("namespace=", namespace)
+	db.Where("namespace", namespace)
 
 	if len(filters.Platforms) > 0 {
 		db.Where("platform_id IN ?", filters.Platforms)
