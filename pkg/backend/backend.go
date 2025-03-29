@@ -35,7 +35,7 @@ type Backend interface {
 	FindSurvey(meta models.SurveyMetadata) (uint, error)
 	ImportSurvey(meta models.SurveyMetadata, data []byte) (uint, error)
 	GetSurveys(namespace uint, filters SurveyFilter) (PaginatedResult[models.SurveyMetadata], error)
-	GetSurveysStats(namespace uint) ([]map[string]interface{}, error)
+	GetSurveysStats(namespace uint) ([]models.SurveyStats, error)
 	GetNamespaces() ([]models.Namespace, error)
 	CreateNamespace(name string) (uint, error)
 	GetSurveyData(id uint, decompress bool) ([]byte, error)
