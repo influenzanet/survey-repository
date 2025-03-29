@@ -1,4 +1,6 @@
 # 0.3
+
+- Add basic web UI
 - Add basic stat endpoint /namespace/:namespace/surveys/stats
 - Add modelType in meta model (D=Definition, P=Preview), both version can be stored (with same version)
 - Add shorter structure to list imported versions at /namespace/:namespace/surveys/versions (`ShortVersionMeta`)
