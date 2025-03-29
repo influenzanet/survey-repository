@@ -37,6 +37,14 @@ func isDirty() (bool, error) {
 	return code == 0, err
 }
 
+func Write(file string, content string) {
+	err := os.WriteFile(file, []byte(content), 0777)
+	if(err != nil) {
+		fmt.Printf("Error Writing file %s : %s", file, err)
+		os.Exit(1)
+	}
+}
+
 func main() {
 
 	var command string
@@ -72,9 +80,6 @@ func main() {
 	}
 	fmt.Printf("Dirty=%t\n", dirty)
 	data := fmt.Sprintf("%s|%s|%t", tag, revision, dirty)
-	err = os.WriteFile("pkg/version/version.txt", []byte(data), 0777)
-	if(err != nil) {
-		fmt.Printf("Error Writing file version.txt %s", err)
-		os.Exit(1)
-	}
+	
+	Write("pkg/version/version.txt", data)
 }

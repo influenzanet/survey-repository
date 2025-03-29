@@ -1,0 +1,30 @@
+# This is an example nfpm configuration file.
+# Make sure to check the documentation at https://nfpm.goreleaser.com
+#
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+name: "survey-repository"
+arch: "amd64"
+platform: "linux"
+version: ${VERSION}
+section: "default"
+priority: "extra"
+provides:
+  - /usr/local/bin/survey-repository
+maintainer: "Clément Turbelin <clement.turbelin@iplesp.upmc.fr>"
+description: |
+  Survey repository server for Influenzanet
+vendor: "Influenzanet"
+homepage: "https://github.com/influenzanet/survey-repository"
+license: "Apache2"
+contents:
+  - src: ./survey-repository
+    dst: /usr/local/bin/survey-repository
+overrides:
+  rpm:
+    scripts:
+      # Path are relative to project root 
+      postinstall: ./build/scripts/rpm/postinstall.sh

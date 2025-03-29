@@ -40,4 +40,4 @@ docker:
 docker-export:
 	mkdir -p artifacts
 	go run build/meta.go
-	docker buildx build --output type=tar,dest=artifacts/$(NAME).$(VERSION).linux.amd_x86_64.tgz -f build/debian/Dockerfile .
+	docker buildx build --output type=local,dest=artifacts/$(VERSION) -f build/debian/Dockerfile .
