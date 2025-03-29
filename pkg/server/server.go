@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"net/http"
 
 	"github.com/influenzanet/survey-repository/pkg/backend"
 	"github.com/influenzanet/survey-repository/pkg/config"
@@ -21,6 +22,9 @@ import (
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/influenzanet/survey-repository/web"
 )
 
 type HttpServer struct {
@@ -48,7 +52,7 @@ func NewHttpServer(config *config.AppConfig, manager *manager.Manager) *HttpServ
 }
 
 func (server *HttpServer) HomeHandler(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"Status":  "ok",
 		"Version": server.version.Tag,
 		"Started": server.start,
@@ -57,7 +61,7 @@ func (server *HttpServer) HomeHandler(c *fiber.Ctx) error {
 
 func (server *HttpServer) NamespacesHandler(c *fiber.Ctx) error {
 	namespaces := server.manager.GetNamespaces()
-	return c.JSON(namespaces)
+	return c.Status(fiber.StatusOK).JSON(namespaces)
 }
 
 func (server *HttpServer) StatsHandler(c *fiber.Ctx) error {
@@ -74,7 +78,7 @@ func (server *HttpServer) StatsHandler(c *fiber.Ctx) error {
 			"error": fmt.Sprintf("%s", err),
 		})
 	}
-	return c.JSON(stats)
+	return c.Status(fiber.StatusOK).JSON(stats)
 }
 
 func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
@@ -247,7 +251,7 @@ func (server *HttpServer) SurveyMetaHandler(c *fiber.Ctx) error {
 }
 
 func (server *HttpServer) PlatformsHandler(c *fiber.Ctx) error {
-	return c.JSON(models.WellKnownPlatforms)
+	return c.Status(fiber.StatusOK).JSON(models.WellKnownPlatforms)
 }
 
 func parseCommaList(s string) []string {
@@ -398,9 +402,17 @@ func (server *HttpServer) Start() error {
 		},
 	})
 
-	app.Get("/", server.HomeHandler)
+	//app.Get("/", server.HomeHandler)
+	app.Use("/", filesystem.New(filesystem.Config{
+		Root: http.FS(web.EmbedDirStatic),
+		PathPrefix: "dist",
+		Browse: true,
+	}))
+
+	app.Use(cors.New())
+
 	app.Get("/refs/platforms", server.PlatformsHandler)
-	app.Get("/namespaces", server.NamespacesHandler)
+	app.Get("/refs/namespaces", server.NamespacesHandler)
 	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysFullHandler)
 	app.Get("/namespace/:namespace/surveys/versions", server.NamespaceSurveysVersionsHandler)
 	app.Get("/namespace/:namespace/surveys/stats", server.StatsHandler)

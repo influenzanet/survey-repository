@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title></title>
+</head>
+<body>
+  <div id="app">
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <div class="container-fluid">
+          <a class="navbar-brand" href="#">
+            <img src="https://influenzanet.info/assets/img/logo/influenzaNet/influenzanet_logo.png" alt="Influenzanet" width="155" height="30">
+          </a>
+        Survey Repository
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse text-white" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link nav-page" aria-current="page" href="#" id="nav-home" data-target="home">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link nav-page" aria-current="page" href="#" id="nav-platforms" data-target="platforms">Platforms</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link nav-page" aria-current="page" href="#" id="nav-stats" data-target="stats">Statistics</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  <div id="main" class="mt-1 p-2 container-fluid">
+    <div id="error" style="display:none" class="alert alert-danger"></div>
+    <div id="page-home" class="page">
+      <div class="card w-75 m-2 mx-auto">
+      <div class="card-body">
+        Survey Repository is a small service that allows the centralisation of survey definitions for the InfluenzaNet project.
+        The aim of this project is to improve the documentation of the collected data and to facilitate the comparison of data between participating countries.
+        This repository contains only the definitions of the surveys (json) and it's not intentented to receive any collected data.
+      </div> 
+    </div>
+    </div>
+    <div id="page-platforms" class="page">
+      <div class="card w-75 m-2 mx-auto">
+        <div class="card-body">
+          <h3>Known platforms</h3>
+          <p>(if your platform is not registered here, contact Influenzanet Team)</p>
+          <table class="table w-auto">
+            <thead>
+              <tr>
+                <th>Id</th>
+                <th>Label</th>
+                <th>Country</th>
+              </tr>
+            </thead>
+            <tbody id="platforms-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div> <!-- page-platforms -->
+    <div id="page-stats" class="page">
+      <div class="card w-75 m-2 mx-auto">
+        <div class="card-body">
+          <div id="stats-ui"></div>
+          <ul class="list-unstyled">
+            <li><i class="fa fa-sitemap"></i> : Survey full definition</li>
+            <li><i class="fa fa-rectangle-list"></i> Survey preview (data dictionary only)</li>
+          </ul>
+        </div>
+      </div>
+    </div> <!-- page-stats -->
+  </div><!-- main -->
+  </div><!-- app -->
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
