@@ -138,6 +138,8 @@ func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) 
 
 	db := gb.db.Model(models.SurveyMetadata{}) // Need to have a instance of db
 
+	db.Where("namespace=", namespace)
+
 	if len(filters.Platforms) > 0 {
 		db.Where("platform_id IN ?", filters.Platforms)
 	}
@@ -172,6 +174,26 @@ func (gb *GormBackend) GetSurveys(namespace uint, filters backend.SurveyFilter) 
 		return page, result.Error
 	}
 	return page, nil
+}
+
+type SurveyStats struct {
+
+}
+
+func (gb *GormBackend) GetSurveysStats(namespace uint) ([]map[string]interface{}, error) {
+
+	db := gb.db.Model(models.SurveyMetadata{}) // Need to have a instance of db
+	db.Where("namespace", namespace)
+	db.Select("platform_id","model_type","descriptor_name", "count(*) as count")
+	db.Group("platform_id").Group("model_type").Group("descriptor_name")
+
+	var results []map[string]interface{}
+
+	result := db.Find(&results)
+	if result.Error != nil {
+		return results, result.Error
+	}
+	return results, nil
 }
 
 func (gb *GormBackend) GetSurveyMeta(id uint) (models.SurveyMetadata, error) {

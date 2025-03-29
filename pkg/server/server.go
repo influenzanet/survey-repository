@@ -60,6 +60,23 @@ func (server *HttpServer) NamespacesHandler(c *fiber.Ctx) error {
 	return c.JSON(namespaces)
 }
 
+func (server *HttpServer) StatsHandler(c *fiber.Ctx) error {
+	namespace := c.Params("namespace")
+
+	ns := server.manager.GetNamespaceID(namespace)
+	if ns == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Unknown namespace")
+	}
+
+	stats, err := server.manager.GetSurveysStats(ns)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("%s", err),
+		})
+	}
+	return c.JSON(stats)
+}
+
 func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	namespace := c.Params("namespace")
 
@@ -386,6 +403,7 @@ func (server *HttpServer) Start() error {
 	app.Get("/namespaces", server.NamespacesHandler)
 	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysFullHandler)
 	app.Get("/namespace/:namespace/surveys/versions", server.NamespaceSurveysVersionsHandler)
+	app.Get("/namespace/:namespace/surveys/stats", server.StatsHandler)
 	app.Post("/import/:namespace", ratelimiter, authMiddleware, server.ImportHandler)
 	app.Get("/survey/:id/data", server.SurveyDataHandler)
 	app.Get("/survey/:id", server.SurveyMetaHandler)

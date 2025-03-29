@@ -124,6 +124,10 @@ func (manager *Manager) FindSurvey(meta models.SurveyMetadata) (uint, error) {
 	return manager.db.FindSurvey(meta)
 }
 
+func (manager *Manager) GetSurveysStats(namespace uint) ([]map[string]interface{}, error) {
+	return manager.db.GetSurveysStats(namespace)
+}
+
 func (manager *Manager) GetSurveyData(id uint, decompress bool) ([]byte, error) {
 	return manager.db.GetSurveyData(id, decompress)
 }
