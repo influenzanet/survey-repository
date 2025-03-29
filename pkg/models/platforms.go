@@ -8,11 +8,11 @@ type PlatformInfo struct {
 
 var WellKnownPlatforms []PlatformInfo = []PlatformInfo{
 	{ID: "it", Label:"Influweb.it", Country: "it"},
-	{ID: "fr", Label:"Grippenet.fr", Country: "it"},
+	{ID: "fr", Label:"Grippenet.fr", Country: "fr"},
 	{ID: "uk", Label:"Flusurvey", Country: "gb"},
 	{ID: "nl", Label:"Infectieradar.nl", Country: "nl"},
 	{ID: "be", Label:"Infectieradar.be", Country: "be"},
-	{ID: "ch", Label:"Grippenet.ch", Country: "be"},
+	{ID: "ch", Label:"Grippenet.ch", Country: "ch"},
 	{ID: "dki", Label:"Influmeter", Country: "dk"},
 	{ID: "es", Label:"Gripenet.es", Country: "es"},
 	{ID: "pt", Label:"Gripenet.pt", Country: "pt"},
