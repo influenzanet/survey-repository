@@ -5,8 +5,7 @@ GO=go
 DOCKER_IMAGE ?= survey-repository
 DOCKER_TAG ?= latest
 GOPATH ?= /go
-VERSION ?= $(shell ./build/git-meta version)
-REVISION ?= $(shell ./build/git-meta revision)
+VERSION ?= $(shell go run build/meta.go version)
 GO_PKG ?= github.com/influenzanet/$(NAME)
 DOCKER_NAME ?= $(DOCKER_IMAGE):$(DOCKER_TAG)
 GO_LDFLAGS ?=
@@ -24,6 +23,9 @@ build:
 
 run:
 	go run ./cmd/survey-repository 
+
+version:
+	@echo $(VERSION)
 
 server:
 	go run ./cmd/survey-repository server

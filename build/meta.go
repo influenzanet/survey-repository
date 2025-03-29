@@ -38,12 +38,25 @@ func isDirty() (bool, error) {
 }
 
 func main() {
+
+	var command string
+
+	if(len(os.Args) > 1) {
+		command = os.Args[1]
+	}
+
 	tag, _, err := gitExtractTag()
 	tag = strings.TrimSpace(tag)
 	if(err != nil) {
 		fmt.Printf("Error running git %s", err)
 		os.Exit(1)
 	}
+
+	if(command == "version") {
+		fmt.Printf(tag)
+		os.Exit(0)
+	}
+
 	fmt.Printf("Tag=%s\n", tag)
 	revision, _, err := gitExtractRevision()
 	if(err != nil) {
