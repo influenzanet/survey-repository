@@ -160,7 +160,12 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 				"error": "The survey doesnt contains name, please provide it with `name` field in the POST request",
 			})
 		}
-		descriptor.Name = ""
+		descriptor.Name = name
+	} else {
+		if(name != "") {
+			// If name is provided, the use it instead of the survey key, because it can be platform specific
+			descriptor.Name = name
+		}
 	}
 
 	username := string(c.Locals("_user").(string))
