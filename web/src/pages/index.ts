@@ -1,3 +1,4 @@
+import { Explore } from "./explore";
 import { Home } from "./home";
 import { Page } from "./page";
 import { Platform } from "./platforms";
@@ -14,6 +15,9 @@ export const createPage = (page:string) => {
             break;
         case 'platforms':
             p = new Platform();
+            break;
+        case 'explore':
+            p = new Explore();
             break;
     }
     if(p) {

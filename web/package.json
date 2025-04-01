@@ -19,6 +19,8 @@
     "@fortawesome/fontawesome-free": "^6.7",
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.3",
+    "ifn-survey-tools": "^0.2.0",
+    "survey-engine": "^1",
     "jquery": "^3.7.0",
     "lodash": "^4.17.21"
   }
