@@ -19,7 +19,7 @@ RUN  go mod download
 COPY . ./
 COPY --from=web /web/dist ./web/dist
 RUN  make _docker_install
-RUN  build/scripts/rpm.sh
+RUN  ./build/scripts/rpm.sh
 
 # Final with only built files
 FROM scratch
