@@ -1,3 +1,9 @@
+# O.3.1
+
+- Add explore page in UI with survey rendering
+- Fix return status
+- Use provided name when import survey (allow to override survey key)
+
 # 0.3
 
 - Add basic web UI
