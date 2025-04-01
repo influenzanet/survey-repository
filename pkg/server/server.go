@@ -235,7 +235,7 @@ func (server *HttpServer) SurveyDataHandler(c *fiber.Ctx) error {
 			"error": fmt.Sprintf("%s", err),
 		})
 	}
-	c.SendString(string(data))
+	c.Status(fiber.StatusOK).SendString(string(data))
 	return nil
 }
 
@@ -252,7 +252,7 @@ func (server *HttpServer) SurveyMetaHandler(c *fiber.Ctx) error {
 			"error": fmt.Sprintf("%s", err),
 		})
 	}
-	return c.JSON(data)
+	return c.Status(fiber.StatusOK).JSON(data)
 }
 
 func (server *HttpServer) PlatformsHandler(c *fiber.Ctx) error {
@@ -356,7 +356,7 @@ func (server *HttpServer) loadNamespaceSurveys(c *fiber.Ctx, onlyVersion bool) e
 		}
 		return c.JSON(p)
 	}
-	return c.JSON(data)
+	return c.Status(fiber.StatusOK).JSON(data)
 }
 
 func (server *HttpServer) BasicAuthorizer(user, password string) bool {
