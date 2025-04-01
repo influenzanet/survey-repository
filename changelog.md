@@ -1,5 +1,8 @@
+
+
 # O.3.1
 
+- Update dependencies fiber & x/crypto
 - Add explore page in UI with survey rendering
 - Fix return status
 - Use provided name when import survey (allow to override survey key)
