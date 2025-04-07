@@ -1,5 +1,10 @@
 
 
+# 0.4
+
+- Add a dedicated login endpoint providing an short lived token for others endpoints
+
+
 # O.3.1
 
 - Update dependencies fiber & x/crypto
