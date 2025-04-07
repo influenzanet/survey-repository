@@ -75,6 +75,7 @@ Server replies a json :
     "key":"the-auth-key",
     "ttl":3600
 }
+```
 
 It's possible to add the query param `only_key` to get only the authentication key as body content (for use in script)
 
