@@ -1,4 +1,8 @@
-Draft project for central survey repository for Influenzanet platforms
+# Survey repository
+
+The purpose of this survey repository is to provide a central point for the collection of survey definitions in order to improve the documentation of the data collection of the Influenzanet project and its variation across participating countries or over time.
+
+This server will only collect survey definitions and will not contain any collected data.
 
 ## Configuration
 
