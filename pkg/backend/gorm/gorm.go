@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
+	"time"
 	"github.com/influenzanet/survey-repository/pkg/backend"
 	"github.com/influenzanet/survey-repository/pkg/models"
 	"github.com/klauspost/compress/zstd"
@@ -235,9 +235,45 @@ func (gb *GormBackend) CreateNamespace(name string) (uint, error) {
 	return ns.ID, nil
 }
 
+func (gb *GormBackend) CreateAuthKey(user string) (models.AuthKey, error) {
+	created := time.Now().Unix()
+	auth := models.AuthKey{User: user, Created: created, }
+	key, err := backend.CreateToken()
+	if(err != nil) {
+		return auth, err
+	}
+	auth.Key = key
+	result := gb.db.Create(&auth)
+	if result.Error != nil {
+		return auth, result.Error
+	}
+	return auth, nil
+}
+
+func (gb *GormBackend) FindUserFromAuthKey(key string) (models.AuthKey, error) {
+	auth := models.AuthKey{Key: key}
+	result := gb.db.Model(auth).First(&auth)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return models.AuthKey{User: ""}, nil
+		}
+		return auth, result.Error
+	}
+	return auth, nil
+}
+
+func (gb *GormBackend) CleanupKeys(expireTime int64) (int64, error) {
+	result := gb.db.Delete(models.AuthKey{}, "created < ?", expireTime)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
 func (gb *GormBackend) Migrate() error {
 	gb.db.AutoMigrate(&models.Namespace{})
 	gb.db.AutoMigrate(&models.SurveyMetadata{})
 	gb.db.AutoMigrate(&models.SurveyData{})
+	gb.db.AutoMigrate(&models.AuthKey{})
 	return nil
 }

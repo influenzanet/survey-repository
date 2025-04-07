@@ -21,6 +21,7 @@ import (
 	fiber "github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
+	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -36,6 +37,9 @@ type HttpServer struct {
 	storeSurvey bool
 	version  	version.VersionInfo
 }
+
+const UserContextKey = "_user"
+
 
 // ShortVersionMeta is a shorter structure to list survey versions
 type ShortVersionMeta struct {
@@ -168,7 +172,7 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 		}
 	}
 
-	username := string(c.Locals("_user").(string))
+	username := string(c.Locals(UserContextKey).(string))
 
 	modelType := ""
 
@@ -371,6 +375,25 @@ func (server *HttpServer) BasicAuthorizer(user, password string) bool {
 	return check
 }
 
+func (server *HttpServer) LoginHandler(c *fiber.Ctx) error {
+	username := string(c.Locals(UserContextKey).(string))
+	auth, err := server.manager.CreateAuthKey(username)
+	if(err != nil) {
+		log.Printf("Error creating auth key for %s : %s", username, err)
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Unable to create authentication key",
+		})
+	}
+	onlyKey := c.Query("only_key")
+	if(onlyKey != "") {
+		onlyKey = strings.ToLower(onlyKey)
+		if(onlyKey == "1" || onlyKey == "true") {
+			return c.Status(fiber.StatusAccepted).Send([]byte(auth.Key))		
+		}
+	}
+	return c.Status(fiber.StatusAccepted).JSON(auth)
+}
+
 func (server *HttpServer) Start() error {
 
 	app := fiber.New()
@@ -395,7 +418,7 @@ func (server *HttpServer) Start() error {
 			})
 			return nil
 		},
-		ContextUsername: "_user",
+		ContextUsername: UserContextKey,
 		ContextPassword: "_pass",
 	})
 
@@ -407,6 +430,26 @@ func (server *HttpServer) Start() error {
 		},
 	})
 
+	loginRatelimiter := limiter.New(limiter.Config{
+		Max:          cfg.LoginLimiterMax,
+		Expiration:     time.Duration(int64(cfg.LoginLimiterWindow)) * time.Second,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.Get("x-forwarded-for")
+		},
+	})
+
+	keyAuthMiddleware := keyauth.New(keyauth.Config{
+		Validator:  func(c *fiber.Ctx, key string) (bool, error) {
+			user, err := server.manager.FindUserFromAuthKey(key)
+			if err != nil {
+				return false, err
+			}
+			c.Locals(UserContextKey, user)
+			return true, nil
+		},
+	})
+
+
 	//app.Get("/", server.HomeHandler)
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root: http.FS(web.EmbedDirStatic),
@@ -416,14 +459,21 @@ func (server *HttpServer) Start() error {
 
 	app.Use(cors.New())
 
+	app.Get("/user/login", loginRatelimiter, authMiddleware, server.LoginHandler)
+	
 	app.Get("/refs/platforms", server.PlatformsHandler)
 	app.Get("/refs/namespaces", server.NamespacesHandler)
 	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysFullHandler)
 	app.Get("/namespace/:namespace/surveys/versions", server.NamespaceSurveysVersionsHandler)
 	app.Get("/namespace/:namespace/surveys/stats", server.StatsHandler)
-	app.Post("/import/:namespace", ratelimiter, authMiddleware, server.ImportHandler)
+	app.Post("/import/:namespace", ratelimiter, keyAuthMiddleware, server.ImportHandler)
 	app.Get("/survey/:id/data", server.SurveyDataHandler)
 	app.Get("/survey/:id", server.SurveyMetaHandler)
 
 	return app.Listen(cfg.Host)
+}
+
+
+func (server *HttpServer) Shutdown() error {
+	return server.app.Shutdown()
 }

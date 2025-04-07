@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"time"
+	"context"
 
 	"github.com/influenzanet/survey-repository/pkg/backend"
 	gormBackend "github.com/influenzanet/survey-repository/pkg/backend/gorm"
@@ -13,22 +15,47 @@ import (
 	"github.com/influenzanet/survey-repository/pkg/models"
 )
 
-var ErrUnknownNamespace = errors.New("unknown namespace")
+var (
+	ErrUnknownNamespace = errors.New("unknown namespace")
+	ErrTokenExpired = errors.New("token has expired")
+	ErrTokenNotFound = errors.New("token not found")
+	ErrInBackend = errors.New("unable to get record")
+)
+
+type AuthResponse struct {
+	Key string `json:"key"`
+	TTL int64 `json:"ttl"`
+}
 
 type Manager struct {
 	db         backend.Backend
 	SurveyPath string
+	keyTTL	   int64
 	namespaces NsRegistry
+	cleanupTicker *time.Ticker
 }
 
 func NewManager(config *config.AppConfig) *Manager {
 
 	db := gormBackend.NewGormBackend(gormBackend.GormBackendConfig{DSN: config.DB.DSN, Debug: config.DB.Debug})
+	cleanupTicker := time.NewTicker(config.Auth.CleanupDuration)
 
 	return &Manager{
 		db:         db,
 		SurveyPath: config.SurveyPath,
+		keyTTL: config.Auth.AuthKeyTTL,
+		cleanupTicker: cleanupTicker,
 	}
+}
+
+func (manager *Manager) StartRoutines(ctx context.Context) error {
+	
+	// First run on startup
+	manager.cleanupKeys()
+	
+	// Run cleanup routine in sub routine
+	go manager.cleanupHander(ctx)
+	return nil
 }
 
 func (manager *Manager) Start() error {
@@ -139,6 +166,65 @@ func (manager *Manager) GetSurveyMeta(id uint) (models.SurveyMetadata, error) {
 func (manager *Manager) GetSurveys(namespace uint, filters backend.SurveyFilter) (backend.PaginatedResult[models.SurveyMetadata], error) {
 	return manager.db.GetSurveys(namespace, filters)
 }
+
+func (manager *Manager) CreateAuthKey(user string) (AuthResponse, error) {
+	auth, err := manager.db.CreateAuthKey(user)
+	if err != nil {
+		return AuthResponse{}, err
+	}
+	return AuthResponse{Key: auth.Key, TTL: manager.keyTTL}, nil
+}
+
+func (manager *Manager) keyExpirationTime() time.Time {
+	return time.Now().Add(-time.Duration(manager.keyTTL) * time.Second)
+}
+
+func (manager *Manager) FindUserFromAuthKey(key string) (string, error) {
+	auth, err := manager.db.FindUserFromAuthKey(key)
+	if err != nil {
+		log.Printf("Error searching for key %s", err)
+		return "", ErrInBackend
+	}
+
+	expires := manager.keyExpirationTime().Unix()
+	
+	if(auth.Created < expires) {
+		return "", ErrTokenExpired
+	}
+	
+	if(auth.User == "") {
+		return "", ErrTokenNotFound
+	}
+	return auth.User, nil
+}
+
+func (manager *Manager) cleanupKeys() error {
+	expires := manager.keyExpirationTime().Unix()
+	removed, err := manager.db.CleanupKeys(expires)
+	if err != nil {
+		log.Printf("Error in cleanup routine : %s", err)
+	} else {
+		log.Printf("Auth key removed : %d", removed)
+	}
+	return err
+}
+
+
+func (manager *Manager) cleanupHander(ctx context.Context) {
+	log.Printf("Starting Cleanup Hander",)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("cleanup routine", ctx.Err())
+			return
+
+		case <-manager.cleanupTicker.C:
+			log.Println("Running cleanup routine")
+			manager.cleanupKeys()
+		}
+	}
+}
+
 
 type NsRegistry struct {
 	toName map[uint]string

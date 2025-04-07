@@ -40,5 +40,8 @@ type Backend interface {
 	CreateNamespace(name string) (uint, error)
 	GetSurveyData(id uint, decompress bool) ([]byte, error)
 	GetSurveyMeta(id uint) (models.SurveyMetadata, error)
+	CreateAuthKey(user string) (models.AuthKey, error) 
+	FindUserFromAuthKey(key string) (models.AuthKey, error) 
+	CleanupKeys(expireTime int64) (int64, error) 
 	Migrate() error
 }

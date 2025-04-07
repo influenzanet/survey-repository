@@ -8,6 +8,17 @@ app.toml
 # Path to store 
 survey_path = "data"
 
+[auth]
+## Authentication token (delivered with login)
+
+# token's time to live (in seconds)
+auth_key_ttl=3700
+
+# cleanup routine delay
+# Using golang duration string 
+cleanup_delay="28h" 
+
+
 [db]
 
 # Database DSN, actually only sqlite is implemented, expect file name
@@ -25,6 +36,11 @@ host = "localhost:8080"
 limiter_max=3
 limiter_window=30
 
+# Rate limiter for login
+# Accept {login_limiter_max} request by {login_limiter_window} seconds
+login_limiter_max=3
+login_limiter_window=30
+
 # Users, list of available users
 # username=argon hash
 # You can generate hash using the 'password' command of the binary
@@ -40,11 +56,27 @@ The server exposes several routes (routes are expressed as URI without the base 
 
 | verb |route                             |  description                                 | Parameters  |
 |------|----------------------------------|----------------------------------------------| ----------- |
+| GET  | /user/login                      | Get an authentication key (Basic Auth)       |  only_key   |
 | GET  | /namespaces                      | List of available namespaces                 |             |
 | POST | /import/{namespace}              | Import a survey in the namespace {namespace} | platform, survey, version  |
 | GET  | /survey/{id}                     | Survey info about for record {id}            |             |
 | GET  | /survey/{id}/data                | Survey json data for {id}                    |             |
 | GET  | namespace/{namespace}/surveys    | List surveys in a namespace                  | See details |
+
+### Login
+
+To get an authentication key (useable for some delay) to perform restricted actions like import a survey
+
+Login/password are send using Basic authentication.
+
+Server replies a json :
+```json
+{
+    "key":"the-auth-key",
+    "ttl":3600
+}
+
+It's possible to add the query param `only_key` to get only the authentication key as body content (for use in script)
 
 ### Import a survey
 
@@ -62,7 +94,10 @@ Using Curl :
 SURVEY=/path/to/you/survey
 VERSION=version
 PLATFORM=code
-curl -X POST -u "user:password" -F "platform=$PLATFORM" -F "survey=@$SURVEY" http://localhost:8080/import/influenzanet
+
+AUTHKEY = $(curl -X GET -u "user:password" http://localhost:3100/user/login?only_key=1)
+
+curl -X POST -H "Authorization: Bearer $AUTHKEY" -F "platform=$PLATFORM" -F "survey=@$SURVEY" http://localhost:8080/import/influenzanet
 ```
 
 Fields:
