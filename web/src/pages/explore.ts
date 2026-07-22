@@ -91,7 +91,7 @@ export class Explore extends Page {
             }
             const $explore =  $('#explore-ui');
             const $ui = $('#survey-show');
-            const $f = $('<iframe style="width:100%">');
+            const $f = $('<iframe style="width:100%; height: 100vh">');
             $f.attr('srcdoc', content);
             $ui.empty();
             
