@@ -7,7 +7,7 @@ RUN npm install
 COPY ./web /web
 RUN npm run build
 
-FROM golang:1.22 AS builder
+FROM golang:1.25.12 AS builder
 ENV  GO11MODULE=on
 WORKDIR /go/
 # Install nfpm to build rpm
