@@ -3,12 +3,12 @@ package server
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"strings"
 	"sync/atomic"
 	"time"
-	"net/http"
 
 	"github.com/influenzanet/survey-repository/pkg/backend"
 	"github.com/influenzanet/survey-repository/pkg/config"
@@ -17,14 +17,14 @@ import (
 	"github.com/influenzanet/survey-repository/pkg/surveys"
 	"github.com/influenzanet/survey-repository/pkg/utils"
 	"github.com/influenzanet/survey-repository/pkg/version"
-	
-	fiber "github.com/gofiber/fiber/v2"
-	fiberlog "github.com/gofiber/fiber/v2/log"
-	"github.com/gofiber/fiber/v2/middleware/basicauth"
-	"github.com/gofiber/fiber/v2/middleware/keyauth"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/gofiber/fiber/v2/middleware/cors"
+
+	fiber "github.com/gofiber/fiber/v3"
+	fiberlog "github.com/gofiber/fiber/v3/log"
+	"github.com/gofiber/fiber/v3/middleware/basicauth"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/keyauth"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/influenzanet/survey-repository/web"
 )
 
@@ -35,27 +35,26 @@ type HttpServer struct {
 	start       time.Time
 	counter     atomic.Uint64
 	storeSurvey bool
-	version  	version.VersionInfo
+	version     version.VersionInfo
 }
 
 const UserContextKey = "_user"
 
-
 // ShortVersionMeta is a shorter structure to list survey versions
 type ShortVersionMeta struct {
-	ID		uint `json:"id"`
-	Version string `json:"version"`
-	PublishedAt int64 `json:"published"`
-	PlatformID string `json:"platform"`
-	Name	string `json:"name"`
-	ModelType  string `json:"model_type"` // Model type 'definition','preview'
+	ID          uint   `json:"id"`
+	Version     string `json:"version"`
+	PublishedAt int64  `json:"published"`
+	PlatformID  string `json:"platform"`
+	Name        string `json:"name"`
+	ModelType   string `json:"model_type"` // Model type 'definition','preview'
 }
 
 func NewHttpServer(config *config.AppConfig, manager *manager.Manager) *HttpServer {
 	return &HttpServer{config: config, manager: manager, storeSurvey: true}
 }
 
-func (server *HttpServer) HomeHandler(c *fiber.Ctx) error {
+func (server *HttpServer) HomeHandler(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"Status":  "ok",
 		"Version": server.version.Tag,
@@ -63,12 +62,12 @@ func (server *HttpServer) HomeHandler(c *fiber.Ctx) error {
 	})
 }
 
-func (server *HttpServer) NamespacesHandler(c *fiber.Ctx) error {
+func (server *HttpServer) NamespacesHandler(c fiber.Ctx) error {
 	namespaces := server.manager.GetNamespaces()
 	return c.Status(fiber.StatusOK).JSON(namespaces)
 }
 
-func (server *HttpServer) StatsHandler(c *fiber.Ctx) error {
+func (server *HttpServer) StatsHandler(c fiber.Ctx) error {
 	namespace := c.Params("namespace")
 
 	ns := server.manager.GetNamespaceID(namespace)
@@ -85,7 +84,7 @@ func (server *HttpServer) StatsHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(stats)
 }
 
-func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
+func (server *HttpServer) ImportHandler(c fiber.Ctx) error {
 	namespace := c.Params("namespace")
 
 	ns := server.manager.GetNamespaceID(namespace)
@@ -127,7 +126,7 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 
 	version := c.FormValue("version")
 	name := c.FormValue("name")
-	
+
 	count := server.counter.Add(1)
 
 	var fn string
@@ -141,15 +140,15 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	}
 
 	descriptor, err := surveys.ExtractSurveyMetadata([]byte(survey))
-	
+
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
 		})
 	}
 
-	if(descriptor.VersionID == "") {
-		if(version == "") {
+	if descriptor.VersionID == "" {
+		if version == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "The survey doesnt contains version, please provide it with `version` field in the POST request",
 			})
@@ -158,15 +157,15 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 		version = descriptor.VersionID
 	}
 
-	if(descriptor.Name == "") {
-		if(name == "") {
+	if descriptor.Name == "" {
+		if name == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "The survey doesnt contains name, please provide it with `name` field in the POST request",
 			})
 		}
 		descriptor.Name = name
 	} else {
-		if(name != "") {
+		if name != "" {
 			// If name is provided, the use it instead of the survey key, because it can be platform specific
 			descriptor.Name = name
 		}
@@ -176,7 +175,7 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 
 	modelType := ""
 
-	if(descriptor.ModelVersion == "preview") {
+	if descriptor.ModelVersion == "preview" {
 		modelType = models.SurveyModelPreview
 	} else {
 		modelType = models.SurveyModelDefinition
@@ -185,8 +184,8 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	meta := models.SurveyMetadata{
 		Namespace:  ns,
 		PlatformID: platform,
-		Version: version,
-		ModelType: modelType,
+		Version:    version,
+		ModelType:  modelType,
 		ImportedAt: time.Now().Unix(),
 		ImportedBy: username,
 		Descriptor: *descriptor,
@@ -215,19 +214,19 @@ func (server *HttpServer) ImportHandler(c *fiber.Ctx) error {
 	}
 
 	m := ShortVersionMeta{
-		ID:  id,
-		Version: meta.Version,
+		ID:          id,
+		Version:     meta.Version,
 		PublishedAt: meta.Descriptor.Published,
-		PlatformID: meta.PlatformID, 
-		ModelType: meta.ModelType, 
-		Name: meta.Descriptor.Name,
+		PlatformID:  meta.PlatformID,
+		ModelType:   meta.ModelType,
+		Name:        meta.Descriptor.Name,
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(m)
 }
 
-func (server *HttpServer) SurveyDataHandler(c *fiber.Ctx) error {
-	id, err := c.ParamsInt("id")
+func (server *HttpServer) SurveyDataHandler(c fiber.Ctx) error {
+	id, err := fiber.Params[int](c, "id"), error(nil)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
@@ -243,8 +242,8 @@ func (server *HttpServer) SurveyDataHandler(c *fiber.Ctx) error {
 	return nil
 }
 
-func (server *HttpServer) SurveyMetaHandler(c *fiber.Ctx) error {
-	id, err := c.ParamsInt("id")
+func (server *HttpServer) SurveyMetaHandler(c fiber.Ctx) error {
+	id, err := fiber.Params[int](c, "id"), error(nil)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("%s", err),
@@ -259,7 +258,7 @@ func (server *HttpServer) SurveyMetaHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(data)
 }
 
-func (server *HttpServer) PlatformsHandler(c *fiber.Ctx) error {
+func (server *HttpServer) PlatformsHandler(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(models.WellKnownPlatforms)
 }
 
@@ -272,16 +271,15 @@ func parseCommaList(s string) []string {
 	return o
 }
 
-func (server *HttpServer) NamespaceSurveysFullHandler(c *fiber.Ctx) error {
+func (server *HttpServer) NamespaceSurveysFullHandler(c fiber.Ctx) error {
 	return server.loadNamespaceSurveys(c, false)
 }
 
-func (server *HttpServer) NamespaceSurveysVersionsHandler(c *fiber.Ctx) error {
+func (server *HttpServer) NamespaceSurveysVersionsHandler(c fiber.Ctx) error {
 	return server.loadNamespaceSurveys(c, true)
 }
 
-
-func (server *HttpServer) loadNamespaceSurveys(c *fiber.Ctx, onlyVersion bool) error {
+func (server *HttpServer) loadNamespaceSurveys(c fiber.Ctx, onlyVersion bool) error {
 	namespace := c.Params("namespace")
 	filters := backend.SurveyFilter{}
 
@@ -300,24 +298,24 @@ func (server *HttpServer) loadNamespaceSurveys(c *fiber.Ctx, onlyVersion bool) e
 		filters.ModelTypes = parseCommaList(qTypes)
 	}
 
-	limit := c.QueryInt("limit", 0)
-	offset := c.QueryInt("offset", 0)
+	limit := fiber.Query[int](c, "limit", 0)
+	offset := fiber.Query[int](c, "offset", 0)
 	if limit > 0 {
 		filters.Limit = limit
 		filters.Offset = offset
 	} else {
-		if(offset > 0) {
+		if offset > 0 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "`offset` param can only be used whith `limit`",
 			})
 		}
 	}
 
-	publishedFrom := c.QueryInt("published_from", 0)
+	publishedFrom := fiber.Query[int](c, "published_from", 0)
 	if publishedFrom > 0 {
 		filters.Published.From = int64(publishedFrom)
 	}
-	publishedTo := c.QueryInt("published_to", 0)
+	publishedTo := fiber.Query[int](c, "published_to", 0)
 	if publishedTo > 0 {
 		filters.Published.To = int64(publishedTo)
 	}
@@ -335,26 +333,26 @@ func (server *HttpServer) loadNamespaceSurveys(c *fiber.Ctx, onlyVersion bool) e
 			"error": fmt.Sprintf("%s", err),
 		})
 	}
-	if(onlyVersion) {
+	if onlyVersion {
 
 		versions := make([]ShortVersionMeta, 0, len(data.Data))
 		for _, sv := range data.Data {
 
 			m := ShortVersionMeta{
-				ID:  sv.ID,
-				Version: sv.Version,
+				ID:          sv.ID,
+				Version:     sv.Version,
 				PublishedAt: sv.Descriptor.Published,
-				PlatformID: sv.PlatformID, 
-				ModelType: sv.ModelType, 
-				Name: sv.Descriptor.Name,
+				PlatformID:  sv.PlatformID,
+				ModelType:   sv.ModelType,
+				Name:        sv.Descriptor.Name,
 			}
 			versions = append(versions, m)
 		}
 		p := backend.PaginatedResult[ShortVersionMeta]{
 			PaginateInfo: backend.PaginateInfo{
-				Total: data.Total,
+				Total:  data.Total,
 				Offset: data.Offset,
-				Limit: data.Limit,
+				Limit:  data.Limit,
 			},
 			Data: versions,
 		}
@@ -363,7 +361,7 @@ func (server *HttpServer) loadNamespaceSurveys(c *fiber.Ctx, onlyVersion bool) e
 	return c.Status(fiber.StatusOK).JSON(data)
 }
 
-func (server *HttpServer) BasicAuthorizer(user, password string) bool {
+func (server *HttpServer) BasicAuthorizer(user, password string, ctx fiber.Ctx) bool {
 	hash, ok := server.config.Users[user]
 	if !ok {
 		return false
@@ -375,20 +373,20 @@ func (server *HttpServer) BasicAuthorizer(user, password string) bool {
 	return check
 }
 
-func (server *HttpServer) LoginHandler(c *fiber.Ctx) error {
+func (server *HttpServer) LoginHandler(c fiber.Ctx) error {
 	username := string(c.Locals(UserContextKey).(string))
 	auth, err := server.manager.CreateAuthKey(username)
-	if(err != nil) {
+	if err != nil {
 		log.Printf("Error creating auth key for %s : %s", username, err)
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "Unable to create authentication key",
 		})
 	}
 	onlyKey := c.Query("only_key")
-	if(onlyKey != "") {
+	if onlyKey != "" {
 		onlyKey = strings.ToLower(onlyKey)
-		if(onlyKey == "1" || onlyKey == "true") {
-			return c.Status(fiber.StatusAccepted).Send([]byte(auth.Key))		
+		if onlyKey == "1" || onlyKey == "true" {
+			return c.Status(fiber.StatusAccepted).Send([]byte(auth.Key))
 		}
 	}
 	return c.Status(fiber.StatusAccepted).JSON(auth)
@@ -412,34 +410,32 @@ func (server *HttpServer) Start() error {
 		Users:      nil,
 		Realm:      "Forbidden",
 		Authorizer: server.BasicAuthorizer,
-		Unauthorized: func(c *fiber.Ctx) error {
+		Unauthorized: func(c fiber.Ctx) error {
 			c.JSON(fiber.Map{
 				"Status": "Unauthorized",
 			})
 			return nil
 		},
-		ContextUsername: UserContextKey,
-		ContextPassword: "_pass",
 	})
 
 	ratelimiter := limiter.New(limiter.Config{
-		Max:          cfg.LimiterMax,
-		Expiration:     time.Duration(int64(cfg.LimiterWindow)) * time.Second,
-		KeyGenerator: func(c *fiber.Ctx) string {
+		Max:        cfg.LimiterMax,
+		Expiration: time.Duration(int64(cfg.LimiterWindow)) * time.Second,
+		KeyGenerator: func(c fiber.Ctx) string {
 			return c.Get("x-forwarded-for")
 		},
 	})
 
 	loginRatelimiter := limiter.New(limiter.Config{
-		Max:          cfg.LoginLimiterMax,
-		Expiration:     time.Duration(int64(cfg.LoginLimiterWindow)) * time.Second,
-		KeyGenerator: func(c *fiber.Ctx) string {
+		Max:        cfg.LoginLimiterMax,
+		Expiration: time.Duration(int64(cfg.LoginLimiterWindow)) * time.Second,
+		KeyGenerator: func(c fiber.Ctx) string {
 			return c.Get("x-forwarded-for")
 		},
 	})
 
 	keyAuthMiddleware := keyauth.New(keyauth.Config{
-		Validator:  func(c *fiber.Ctx, key string) (bool, error) {
+		Validator: func(c fiber.Ctx, key string) (bool, error) {
 			user, err := server.manager.FindUserFromAuthKey(key)
 			if err != nil {
 				return false, err
@@ -449,18 +445,17 @@ func (server *HttpServer) Start() error {
 		},
 	})
 
-
+	sub, _ := fs.Sub(web.EmbedDirStatic, "dist")
 	//app.Get("/", server.HomeHandler)
-	app.Use("/", filesystem.New(filesystem.Config{
-		Root: http.FS(web.EmbedDirStatic),
-		PathPrefix: "dist",
+	app.Use("/", static.New("", static.Config{
+		FS:     sub,
 		Browse: true,
 	}))
 
 	app.Use(cors.New())
 
 	app.Get("/user/login", loginRatelimiter, authMiddleware, server.LoginHandler)
-	
+
 	app.Get("/refs/platforms", server.PlatformsHandler)
 	app.Get("/refs/namespaces", server.NamespacesHandler)
 	app.Get("/namespace/:namespace/surveys", server.NamespaceSurveysFullHandler)
@@ -472,7 +467,6 @@ func (server *HttpServer) Start() error {
 
 	return app.Listen(cfg.Host)
 }
-
 
 func (server *HttpServer) Shutdown() error {
 	return server.app.Shutdown()
